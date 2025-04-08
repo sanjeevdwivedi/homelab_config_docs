@@ -3,3 +3,4 @@
 docker run -d -p 8001:8000 kokoro_server
 ```
 
+then go to http://plex-garage.lan:8001/
