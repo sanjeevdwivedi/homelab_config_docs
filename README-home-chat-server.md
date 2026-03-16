@@ -41,8 +41,11 @@ docker run -p 6333:6333 -p 6334:6334 \
 
 ```bash
 # Running the  search service
-docker run --network=host -e HUGGINGFACE_HUB_TOKEN=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 -e QDRANT_HOST=localhost -p 6500:6500 search_service
+docker run --network=host -e HUGGINGFACE_HUB_TOKEN=<insert token here> -e QDRANT_HOST=localhost -p 6500:6500 search_service
 ```
+
+the hugging face token in the above would be:
+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 
 
 ---------- on the plex server
 ```bash
