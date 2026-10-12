@@ -166,18 +166,119 @@ ExecStop=/usr/bin/docker stop -t 10 <name>
 WantedBy=multi-user.target
 ```
 
-Concrete units created:
+Concrete units created — run these to recreate the unit files from scratch:
 
-- `/etc/systemd/system/docker-pg-rdbms-llm.service`
-- `/etc/systemd/system/docker-pgadmin.service`
-  (adds `Requires=docker-pg-rdbms-llm.service` / `After=docker-pg-rdbms-llm.service`
-  so pgAdmin starts after Postgres)
-- `/etc/systemd/system/docker-ollama.service`
-- `/etc/systemd/system/docker-qdrant.service`
-- `/etc/systemd/system/docker-whisper-stt.service`
-- `/etc/systemd/system/docker-kokoro-tts.service`
+```bash
+sudo tee /etc/systemd/system/docker-pg-rdbms-llm.service > /dev/null <<'EOF'
+[Unit]
+Description=Postgres container
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
 
-`search-service` intentionally has **no** systemd unit (see above).
+[Service]
+Restart=always
+RestartSec=5
+ExecStart=/usr/bin/docker start -a pg-rdbms-llm
+ExecStop=/usr/bin/docker stop -t 10 pg-rdbms-llm
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo tee /etc/systemd/system/docker-pgadmin.service > /dev/null <<'EOF'
+[Unit]
+Description=pgAdmin container
+Requires=docker.service docker-pg-rdbms-llm.service
+After=docker.service docker-pg-rdbms-llm.service
+
+[Service]
+Restart=always
+RestartSec=5
+ExecStart=/usr/bin/docker start -a pgadmin
+ExecStop=/usr/bin/docker stop -t 10 pgadmin
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo tee /etc/systemd/system/docker-ollama.service > /dev/null <<'EOF'
+[Unit]
+Description=Ollama container
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Restart=always
+RestartSec=5
+ExecStart=/usr/bin/docker start -a ollama
+ExecStop=/usr/bin/docker stop -t 10 ollama
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo tee /etc/systemd/system/docker-qdrant.service > /dev/null <<'EOF'
+[Unit]
+Description=Qdrant vector DB container
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Restart=always
+RestartSec=5
+ExecStart=/usr/bin/docker start -a qdrant
+ExecStop=/usr/bin/docker stop -t 10 qdrant
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo tee /etc/systemd/system/docker-whisper-stt.service > /dev/null <<'EOF'
+[Unit]
+Description=Whisper STT container
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Restart=always
+RestartSec=5
+ExecStart=/usr/bin/docker start -a whisper-stt
+ExecStop=/usr/bin/docker stop -t 10 whisper-stt
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo tee /etc/systemd/system/docker-kokoro-tts.service > /dev/null <<'EOF'
+[Unit]
+Description=Kokoro TTS container
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Restart=always
+RestartSec=5
+ExecStart=/usr/bin/docker start -a kokoro-tts
+ExecStop=/usr/bin/docker stop -t 10 kokoro-tts
+
+[Install]
+WantedBy=multi-user.target
+EOF
+```
+
+`search-service` intentionally has **no** systemd unit (see above) —
+if one was ever created for it, remove it with:
+
+```bash
+sudo systemctl disable --now docker-search-service.service
+sudo rm -f /etc/systemd/system/docker-search-service.service
+sudo systemctl daemon-reload
+```
 
 Enable/start all six:
 
