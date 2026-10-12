@@ -41,20 +41,21 @@ docker run -p 6333:6333 -p 6334:6334 \
 
 ```bash
 # Running the  search service
-docker run --network=host -e HUGGINGFACE_HUB_TOKEN=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 -e QDRANT_HOST=localhost -p 6500:6500 search_service
+docker run --network=host -e QDRANT_HOST=localhost -p 6500:6500 search_service
 ```
 
-the hugging face token in the above would be:
+obsolete. the hugging face token is not needed at all. the hugging face token in the above would be:
 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 
+
+-e HUGGINGFACE_HUB_TOKEN=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 
 
 ---------- on the plex server
 ```bash
-# Run the front end server
-docker run -p 8000:8000  kokoro_server
-```
-```bash
-# the server runs on the plex-garage.lan:8001
-docker run -d -p 8001:8000 kokoro_server
+docker build -t kokoro-server .
+docker stop kokoro-frontend && docker rm kokoro-frontend
+docker run -d --name kokoro-frontend --restart=unless-stopped \
+  -p 8001:8000 \
+  kokoro-server
 ```
 
 then go to http://plex-garage.lan:8001/
