@@ -40,7 +40,15 @@ docker run -p 6333:6333 -p 6334:6334 \
 ```
 
 ```bash
-# Running the  search service
+This is the new way to build search_service
+docker build -t search_service .
+docker stop search-service && docker rm search-service
+docker run -d --name search-service --restart=unless-stopped \
+  --network=host -e QDRANT_HOST=localhost -p 6500:6500 \
+  search_service
+
+
+# This is obsolete - Running the  search service
 docker run --network=host -e QDRANT_HOST=localhost -p 6500:6500 search_service
 ```
 
