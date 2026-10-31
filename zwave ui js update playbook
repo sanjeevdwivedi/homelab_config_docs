@@ -1,0 +1,102 @@
+# Updating zwave-js-ui (Docker, DietPi RPi4)
+
+Host: `rpi4-dietpi` · Container: `zwave-js-ui` · Image: `zwavejs/zwave-js-ui`
+
+## Why this comes up
+
+Home Assistant Core checks the **internal zwave-js-server protocol version**
+("api schema") bundled inside zwave-js-ui — separate from the zwave-js-ui
+app version number itself. A HA Core update can require a newer api schema
+than your current zwave-js-ui build supports, breaking the Z-Wave JS
+integration until the container is updated.
+
+Typical errors seen in HA:
+- `The version of Z-Wave Server you are currently running is too old for
+  this version of Home Assistant.`
+- `Invalid server version: Z-Wave JS Server version (x.x.x) is
+  incompatible. Update the Z-Wave JS Server to a version that supports at
+  least api schema NN.`
+
+## Current container config (as of 2026-10)
+
+```
+Volume:  zwave-config:/usr/src/app/store
+Device:  /dev/ttyACM0:/dev/ttyACM0
+Ports:   3000:3000, 8091:8091
+Restart: unless-stopped
+```
+
+## Steps
+
+### 1. Back up the current container config (before touching anything)
+```bash
+sudo docker inspect zwave-js-ui > zwave-js-ui-backup-config.json
+```
+Keep this somewhere safe. If anything goes sideways, it has the exact
+Binds/Devices/Ports to recreate from.
+
+### 2. Stop and remove the old container
+The `zwave-config` named volume persists independently of the container —
+removing the container does **not** touch paired devices/network config.
+```bash
+sudo docker stop zwave-js-ui
+sudo docker rm zwave-js-ui
+```
+
+### 3. Remove the stale local image — don't skip this
+**Lesson learned (Oct 2026):** `docker pull zwavejs/zwave-js-ui:latest`
+silently reused the cached local image instead of fetching a new one, even
+though a newer version existed on the registry. Recreating the container
+afterward just relaunched the same old version. Explicitly removing the
+local image first forces a real re-pull.
+```bash
+sudo docker rmi zwavejs/zwave-js-ui:latest
+sudo docker images zwavejs/zwave-js-ui   # should return nothing
+```
+
+### 4. Pull fresh and watch the output
+```bash
+sudo docker pull zwavejs/zwave-js-ui:latest
+```
+Confirm you see real `Downloading`/`Extracting` progress for multiple
+layers (hundreds of MB), not an instant "already up to date." If it's
+suspiciously fast, the pull likely didn't get anything new — check
+https://hub.docker.com/r/zwavejs/zwave-js-ui/tags for the current version
+and pull that explicit tag instead of `:latest`.
+
+### 5. Recreate the container
+```bash
+sudo docker run -d \
+  --name zwave-js-ui \
+  --restart unless-stopped \
+  -v zwave-config:/usr/src/app/store \
+  --device=/dev/ttyACM0:/dev/ttyACM0 \
+  -p 3000:3000 \
+  -p 8091:8091 \
+  zwavejs/zwave-js-ui:latest
+```
+
+### 6. Verify the version actually changed
+```bash
+sudo docker inspect zwave-js-ui --format '{{json .Config.Labels}}'
+```
+Check `org.opencontainers.image.version` and `...created` — both should be
+newer than before the update, not identical.
+
+### 7. Verify devices survived
+Open `http://<rpi-ip>:8091` and confirm all paired Z-Wave devices are still
+listed.
+
+### 8. Verify Home Assistant is happy
+Check Settings → Devices & services → Z-Wave JS integration — the error
+should clear on its own retry, or restart HA Core if it doesn't within a
+minute or two.
+
+## If `:latest` still doesn't move after removing the local image
+
+Docker Hub's `latest` tag can occasionally lag behind the project's actual
+newest release. Pull an explicit version tag instead:
+```bash
+sudo docker pull zwavejs/zwave-js-ui:<version>
+```
+then recreate using that explicit tag in place of `:latest` in step 5.
